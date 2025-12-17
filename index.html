@@ -145,6 +145,14 @@
         button:hover {
             background-color: #0056b3;
         }
+        
+        /* 일시 정지 후 '계속' 버튼 스타일 */
+        #input-form button.continue-button {
+            background-color: #28a745;
+        }
+        #input-form button.continue-button:hover {
+            background-color: #1e7e34;
+        }
 
         /* 조작법 시각화 */
         .controls-visual {
@@ -162,6 +170,13 @@
             border: 2px solid #777;
             min-width: 30px;
             text-align: center;
+            cursor: pointer; /* 클릭 가능하도록 커서 변경 */
+            user-select: none; /* 텍스트 선택 방지 */
+            transition: background-color 0.1s;
+        }
+        
+        .control-key:active {
+            background-color: #666; /* 클릭 시 색상 변경 */
         }
     </style>
 </head>
@@ -199,10 +214,10 @@
     <div style="margin-top: 20px; display: flex; align-items: center; gap: 20px;">
         <button id="pause-button">⏸️ 멈춤 (P)</button>
         <div class="controls-visual">
-            <div class="control-key" title="왼쪽 이동">←</div>
-            <div class="control-key" title="오른쪽 이동">→</div>
-            <div class="control-key" title="회전">↑ (W)</div>
-            <div class="control-key" title="내리기">↓</div>
+            <div class="control-key" id="key-left" title="왼쪽 이동">←</div>
+            <div class="control-key" id="key-right" title="오른쪽 이동">→</div>
+            <div class="control-key" id="key-rotate" title="회전">↑ (W)</div>
+            <div class="control-key" id="key-drop" title="내리기">↓</div>
         </div>
     </div>
     
@@ -219,6 +234,13 @@
         const startGameButton = document.getElementById('start-game-button');
         const pauseButton = document.getElementById('pause-button');
         const rankingList = document.getElementById('ranking-list');
+
+        // 시각적 조작 버튼 엘리먼트
+        const keyLeft = document.getElementById('key-left');
+        const keyRight = document.getElementById('key-right');
+        const keyRotate = document.getElementById('key-rotate');
+        const keyDrop = document.getElementById('key-drop');
+
 
         context.scale(20, 20); // 메인 게임판
         nextContext.scale(20, 20); // 다음 블록 미리보기 (4x5 칸에 맞게 조정)
@@ -372,6 +394,7 @@
                     return;
                 }
             }
+            draw(); // 회전 후 화면 업데이트
         }
 
         function arenaSweep() {
@@ -443,6 +466,7 @@
                 playerReset();
             }
             dropCounter = 0;
+            draw(); // 내리기 후 화면 업데이트 (버튼 드롭 시 부드럽게 보임)
         }
 
         function playerMove(dir) {
@@ -460,7 +484,12 @@
             if (isPaused) {
                 // 일시 정지 시 오버레이를 띄움
                 overlay.style.display = 'flex';
-                inputForm.innerHTML = '<div id="pause-message">PAUSED</div>';
+                // '계속' 버튼을 포함하도록 입력 폼을 업데이트
+                inputForm.innerHTML = `
+                    <div id="pause-message">PAUSED</div>
+                    <button id="continue-game-button" class="continue-button">▶️ 계속</button>
+                `;
+                document.getElementById('continue-game-button').onclick = togglePause;
                 pauseButton.innerText = '▶️ 계속 (P)';
             } else {
                 // 게임 재개
@@ -491,10 +520,12 @@
                 <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요 (최대 10자)" maxlength="10">
                 <button id="start-game-button" disabled>게임 재시작</button>
             `;
+            // 새로 생성된 엘리먼트에 이벤트 리스너 재할당
             document.getElementById('start-game-button').onclick = startGame;
             document.getElementById('nickname-input').oninput = checkNicknameInput;
+            
             document.getElementById('nickname-input').value = currentNickname;
-            checkNicknameInput(); // 닉네임이 이미 있으면 버튼 활성화
+            checkNicknameInput(); 
         }
 
         function startGame() {
@@ -527,7 +558,7 @@
                     if (value !== 0) {
                         ctx.fillStyle = colors[value];
                         ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
-                        // 블록 경계선 (선택사항: 게임 스타일에 따라)
+                        // 블록 경계선 
                         ctx.strokeStyle = '#202028'; 
                         ctx.lineWidth = 0.1;
                         ctx.strokeRect(x + offset.x, y + offset.y, 1, 1);
@@ -574,11 +605,14 @@
         }
 
         function checkNicknameInput() {
+            const input = document.getElementById('nickname-input');
             const button = document.getElementById('start-game-button');
-            if (document.getElementById('nickname-input').value.trim().length > 0) {
-                button.disabled = false;
-            } else {
-                button.disabled = true;
+            if (input && button) { // 엘리먼트가 존재할 때만 실행
+                if (input.value.trim().length > 0) {
+                    button.disabled = false;
+                } else {
+                    button.disabled = true;
+                }
             }
         }
 
@@ -602,6 +636,12 @@
                 togglePause();
             }
         });
+
+        // **새로 추가된 시각적 조작 버튼 클릭 리스너**
+        keyLeft.addEventListener('click', () => playerMove(-1));
+        keyRight.addEventListener('click', () => playerMove(1));
+        keyRotate.addEventListener('click', () => playerRotate(1)); // ↑ 버튼은 시계 방향 회전
+        keyDrop.addEventListener('click', () => playerDrop());
 
         // 버튼 이벤트 리스너
         startGameButton.onclick = startGame;
